@@ -2,4 +2,5 @@
 
 1. Create `.env` file by copying `.env.example` file and fill the required fields
 2. Put files in `files` directory. Name of the file will be the name of the card, content of the file will be the description of the card
-3. Run `go run main.go`
+3. Run `go mod download`
+4. Run `go run main.go`
