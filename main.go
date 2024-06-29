@@ -37,7 +37,7 @@ func init() {
 	listID = os.Getenv("LIST_ID")
 	client = trello.NewClient(apiKey, apiToken)
 	limiter = rate.NewLimiter(rate.Every(time.Second), 1) // adjust the rate limit as needed
-	dir = os.Getenv("DIR")
+	dir = "files"
 }
 
 func main() {
@@ -100,10 +100,14 @@ func processTask(path string, info os.FileInfo, wg *sync.WaitGroup) error {
 		err = client.CreateCard(&card)
 		if err != nil {
 			fmt.Println("Error creating card:", err)
+			os.Remove(path)
 			return nil
 		}
 
 		fmt.Printf("Created card for %s\n", info.Name())
+
+		//remove file from directory
+		os.Remove(path)
 	}
 	return nil
 }
