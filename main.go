@@ -24,47 +24,28 @@ var (
 	dir       string
 )
 
-func init() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+func getListIdByName(listName string) (string, error) {
+	if listName == "" {
+		return "", fmt.Errorf("list name not provided")
 	}
 
-	//load env variables
-	apiKey = os.Getenv("API_KEY")
-	apiToken = os.Getenv("API_TOKEN")
-	boardID = os.Getenv("BOARD_ID")
-	listID = os.Getenv("LIST_ID")
-	client = trello.NewClient(apiKey, apiToken)
-	limiter = rate.NewLimiter(rate.Every(time.Second), 1) // adjust the rate limit as needed
-	dir = "files"
-}
+	board, err := client.GetBoard(boardID, trello.Defaults())
+	if err != nil {
+		return "", err
+	}
 
-func main() {
-	start := time.Now()
+	lists, err := board.GetLists(trello.Defaults())
+	if err != nil {
+		return "", err
+	}
 
-	wg := sync.WaitGroup{}
-
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+	for _, list := range lists {
+		if list.Name == listName {
+			return list.ID, nil
 		}
-
-		wg.Add(1)
-		go processTask(path, info, &wg)
-
-		return nil
-	})
-
-	if err != nil {
-		log.Fatal(err)
 	}
 
-	fmt.Println("Waiting for all tasks to complete...")
-	wg.Wait()
-
-	fmt.Println("Total files processed:", fileCount)
-	fmt.Println("Execution time:", time.Since(start))
+	return "", fmt.Errorf("list %s not found", listName)
 }
 
 func processTask(path string, info os.FileInfo, wg *sync.WaitGroup) error {
@@ -110,4 +91,50 @@ func processTask(path string, info os.FileInfo, wg *sync.WaitGroup) error {
 		os.Remove(path)
 	}
 	return nil
+}
+
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	//load env variables
+	apiKey = os.Getenv("API_KEY")
+	apiToken = os.Getenv("API_TOKEN")
+	boardID = os.Getenv("BOARD_ID")
+	client = trello.NewClient(apiKey, apiToken)
+	limiter = rate.NewLimiter(rate.Every(time.Second), 1) // adjust the rate limit as needed
+	dir = "files"
+
+	listID, err = getListIdByName(os.Getenv("LIST_NAME"))
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func main() {
+	start := time.Now()
+
+	wg := sync.WaitGroup{}
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		wg.Add(1)
+		go processTask(path, info, &wg)
+
+		return nil
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	wg.Wait()
+
+	fmt.Println("Total files processed:", fileCount)
+	fmt.Println("Execution time:", time.Since(start))
 }
